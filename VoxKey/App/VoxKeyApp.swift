@@ -38,9 +38,8 @@ private struct MenuBarContentView: View {
 
             Divider()
 
-            Button("Settings...") {
-                NSApp.activate(ignoringOtherApps: true)
-                NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
+            SettingsLink {
+                Text("Settings...")
             }
             .keyboardShortcut(",", modifiers: .command)
 

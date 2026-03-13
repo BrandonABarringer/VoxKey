@@ -82,7 +82,9 @@ final class TranscriptionService: ObservableObject {
 
     private func buildDecodingOptions() -> DecodingOptions? {
         guard let tokenizer = whisperKit?.tokenizer else { return nil }
-        let promptText = " " + Constants.customDictionaryTerms.joined(separator: ", ")
+        let terms = UserDefaults.standard.stringArray(forKey: "customDictionaryTerms") ?? Constants.defaultDictionaryTerms
+        guard !terms.isEmpty else { return nil }
+        let promptText = " " + terms.joined(separator: ", ")
         let promptTokens = tokenizer.encode(text: promptText)
             .filter { $0 < tokenizer.specialTokens.specialTokenBegin }
         return DecodingOptions(promptTokens: promptTokens)

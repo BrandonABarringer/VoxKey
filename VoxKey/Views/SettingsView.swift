@@ -8,6 +8,9 @@ struct SettingsView: View {
     @EnvironmentObject var transcriptionService: TranscriptionService
     @EnvironmentObject var permissionManager: PermissionManager
 
+    @State private var dictionaryTerms: [String] = UserDefaults.standard.stringArray(forKey: "customDictionaryTerms") ?? Constants.defaultDictionaryTerms
+    @State private var newTerm: String = ""
+
     var body: some View {
         Form {
             Section("Transcription") {
@@ -40,6 +43,31 @@ struct SettingsView: View {
                             }
                         }
                     }
+                }
+            }
+
+            Section("Custom Dictionary") {
+                ForEach(dictionaryTerms, id: \.self) { term in
+                    HStack {
+                        Text(term)
+                        Spacer()
+                        Button(role: .destructive) {
+                            dictionaryTerms.removeAll { $0 == term }
+                            saveDictionaryTerms()
+                        } label: {
+                            Image(systemName: "minus.circle.fill")
+                                .foregroundStyle(.red)
+                        }
+                        .buttonStyle(.borderless)
+                    }
+                }
+
+                HStack {
+                    TextField("New term", text: $newTerm)
+                        .textFieldStyle(.roundedBorder)
+                        .onSubmit { addTerm() }
+                    Button("Add") { addTerm() }
+                        .disabled(newTerm.trimmingCharacters(in: .whitespaces).isEmpty)
                 }
             }
 
@@ -76,7 +104,22 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
-        .frame(width: 450, height: 400)
+        .frame(width: 450, height: 550)
+        .onAppear {
+            NSApp.activate(ignoringOtherApps: true)
+        }
+    }
+
+    private func addTerm() {
+        let trimmed = newTerm.trimmingCharacters(in: .whitespaces)
+        guard !trimmed.isEmpty, !dictionaryTerms.contains(trimmed) else { return }
+        dictionaryTerms.append(trimmed)
+        newTerm = ""
+        saveDictionaryTerms()
+    }
+
+    private func saveDictionaryTerms() {
+        UserDefaults.standard.set(dictionaryTerms, forKey: "customDictionaryTerms")
     }
 
     private func permissionRow(_ name: String, granted: Bool) -> some View {

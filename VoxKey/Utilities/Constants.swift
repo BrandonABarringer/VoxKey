@@ -7,5 +7,5 @@ enum Constants {
     static let defaultModel = "base"
     static let whisperModels = ["tiny", "base", "small", "medium", "large-v3-turbo"]
     static let bundleIdentifier = "com.voxkey.VoxKey"
-    static let customDictionaryTerms = ["Claude", "CLAUDE.md", "Vercel", "git", "GitHub", "Rwest", "commit"]
+    static let defaultDictionaryTerms = ["Claude", "CLAUDE.md", "Vercel", "git", "GitHub", "Rwest", "commit", "Yanmar"]
 }
