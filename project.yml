@@ -1,0 +1,68 @@
+name: VoxKey
+options:
+  bundleIdPrefix: com.voxkey
+  deploymentTarget:
+    macOS: "14.0"
+  xcodeVersion: "15.0"
+  createIntermediateGroups: true
+settings:
+  base:
+    ARCHS: arm64
+    MACOSX_DEPLOYMENT_TARGET: "14.0"
+    SWIFT_VERSION: "5.9"
+    CODE_SIGN_STYLE: Automatic
+targets:
+  VoxKey:
+    type: application
+    platform: macOS
+    sources:
+      - path: VoxKey
+        excludes:
+          - Resources/Info.plist
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.voxkey.VoxKey
+        INFOPLIST_FILE: VoxKey/Resources/Info.plist
+        LD_RUNPATH_SEARCH_PATHS: "$(inherited) @executable_path/../Frameworks"
+        ENABLE_HARDENED_RUNTIME: true
+    dependencies:
+      - package: WhisperKit
+    entitlements:
+      path: VoxKey/Resources/VoxKey.entitlements
+      properties:
+        com.apple.security.app-sandbox: false
+        com.apple.security.device.audio-input: true
+  VoxKeyTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - path: VoxKeyTests
+    dependencies:
+      - target: VoxKey
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.voxkey.VoxKeyTests
+        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/VoxKey.app/Contents/MacOS/VoxKey"
+        BUNDLE_LOADER: "$(TEST_HOST)"
+packages:
+  WhisperKit:
+    url: https://github.com/argmaxinc/WhisperKit
+    from: "0.9.0"
+schemes:
+  VoxKey:
+    build:
+      targets:
+        VoxKey: all
+        VoxKeyTests: [test]
+    run:
+      config: Debug
+    test:
+      config: Debug
+      targets:
+        - VoxKeyTests
+    profile:
+      config: Release
+    analyze:
+      config: Debug
+    archive:
+      config: Release
