@@ -95,10 +95,13 @@ final class HotkeyManager {
         }
 
         let keyCode = event.getIntegerValueField(.keyboardEventKeycode)
-        guard keyCode == Constants.rightCtrlKeyCode else { return }
+        guard keyCode == Constants.activationKeyCode else { return }
 
         let currentFlags = event.flags
-        let controlDown = currentFlags.contains(.maskControl)
+        // Check the appropriate modifier flag based on which key is configured
+        let controlDown = Constants.activationKeyCode == Constants.rightCtrlKeyCode
+            ? currentFlags.contains(.maskControl)
+            : currentFlags.contains(.maskAlternate)
 
         if controlDown && !previousControlDown {
             onKeyDown?()
