@@ -15,6 +15,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private let hotkeyManager = HotkeyManager()
     private let audioCaptureManager = AudioCaptureManager()
     private let textInsertionManager = TextInsertionManager()
+    private let mediaPauseManager = MediaPauseManager()
 
     // Onboarding window
     private var onboardingWindow: NSWindow?
@@ -74,14 +75,28 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         appState.currentState = .recording
 
+        // Pause BEFORE startRecording so the input-device-running probe in
+        // MediaPauseManager doesn't see our own mic activity and misclassify it
+        // as an active call.
+        if shouldPauseMedia {
+            mediaPauseManager.pauseIfPlaying()
+        }
+
         do {
             try audioCaptureManager.startRecording()
             logger.info("Recording started")
         } catch {
             logger.error("Failed to start recording: \(error.localizedDescription)")
+            if shouldPauseMedia {
+                mediaPauseManager.resumeIfPaused()
+            }
             appState.currentState = .idle
             appState.errorMessage = "Failed to start recording: \(error.localizedDescription)"
         }
+    }
+
+    private var shouldPauseMedia: Bool {
+        UserDefaults.standard.object(forKey: "pauseMediaWhileDictating") as? Bool ?? true
     }
 
     private func handleKeyUp() {
@@ -93,6 +108,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         let audioSamples = audioCaptureManager.stopRecording()
         logger.info("Audio captured: \(audioSamples.count) samples (\(Double(audioSamples.count) / 16000.0)s)")
+
+        mediaPauseManager.resumeIfPaused()
 
         appState.currentState = .processing
 

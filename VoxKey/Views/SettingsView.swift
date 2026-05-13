@@ -4,6 +4,7 @@ import ServiceManagement
 struct SettingsView: View {
     @AppStorage("selectedModel") private var selectedModel: String = Constants.defaultModel
     @AppStorage("launchAtLogin") private var launchAtLogin: Bool = false
+    @AppStorage("pauseMediaWhileDictating") private var pauseMediaWhileDictating: Bool = true
 
     @EnvironmentObject var transcriptionService: TranscriptionService
     @EnvironmentObject var permissionManager: PermissionManager
@@ -84,6 +85,8 @@ struct SettingsView: View {
                             print("VoxKey: Failed to update login item: \(error)")
                         }
                     }
+
+                Toggle("Pause media while dictating", isOn: $pauseMediaWhileDictating)
             }
 
             Section("Permissions") {
