@@ -37,6 +37,15 @@ final class AudioCaptureManager {
     func stopRecording() -> [Float] {
         guard isRecording else { return [] }
 
+        // The audio engine takes ~60–100ms after start() before its tap callback
+        // fires with the first buffer. If stop() is called inside that window
+        // (short tap, fast release), rawBuffers is empty and we'd drop the audio.
+        // Wait briefly for at least one buffer to arrive before tearing down.
+        let deadline = Date().addingTimeInterval(0.3)
+        while rawBuffers.isEmpty && Date() < deadline {
+            RunLoop.current.run(mode: .default, before: Date().addingTimeInterval(0.01))
+        }
+
         audioEngine.inputNode.removeTap(onBus: 0)
         audioEngine.stop()
         isRecording = false
