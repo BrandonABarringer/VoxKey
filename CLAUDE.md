@@ -31,10 +31,10 @@ The app is a single executable target whose lifecycle is split between SwiftUI (
 
 **Dictation pipeline** (one full cycle):
 
-1. `HotkeyManager` (CGEventTap on `.flagsChanged`) fires `onKeyDown`.
+1. `HotkeyManager` (CGEventTap on `.flagsChanged`) fires `onActivate`.
 2. `AppDelegate.handleKeyDown` sets state to `.recording` and calls `AudioCaptureManager.startRecording()`.
 3. `AudioCaptureManager` taps the input node in **hardware format** (not 16kHz) and accumulates `AVAudioPCMBuffer` copies. Sample-rate conversion happens at stop time, not during capture — this avoids losing audio if the converter stalls.
-4. On `onKeyUp`, `stopRecording()` concatenates buffers and converts to 16 kHz mono Float32 via `AVAudioConverter`.
+4. On `onDeactivate`, `stopRecording()` concatenates buffers and converts to 16 kHz mono Float32 via `AVAudioConverter`.
 5. `TranscriptionService.transcribe(audioSamples:)` runs WhisperKit with `DecodingOptions.promptTokens` seeded from the custom dictionary (see below).
 6. `TextInsertionManager.insertText(_:)` saves the full pasteboard (all items, all types), writes the transcription, synthesizes ⌘V, then restores the original pasteboard after `Constants.clipboardRestoreDelay`. There is no AX-API path — we always use clipboard + ⌘V.
 
@@ -44,9 +44,15 @@ The app is a single executable target whose lifecycle is split between SwiftUI (
 
 The tap also handles `.tapDisabledByTimeout` / `.tapDisabledByUserInput` by re-enabling itself — macOS disables event taps that block too long.
 
-### Activation key
+### Activation key and mode
 
-`Constants.activationKeyCode` is the single source of truth. Currently `62` (Right Control); set to `61` for Right Option. `HotkeyManager.handleFlagsChanged` reads the matching `CGEventFlags` mask (`.maskControl` for 62, `.maskAlternate` for 61) based on which keycode is configured. If you add a third option, update both the keycode constant and the mask-selection logic.
+User-configurable at runtime via Settings; persisted in `UserDefaults` under `"activationKeyCode"` (Int) and `"activationMode"` (String: `"hold"` / `"singleTap"` / `"doubleTap"`). Defaults live in `Constants` (`defaultActivationKeyCode = 62`, `defaultActivationMode = .hold`).
+
+Supported keys are enumerated in `ActivationKey` (Models/), which maps each keycode to its `CGEventFlags` mask and human-readable label. To add a new supported key, add a case to `ActivationKey` — no other code changes required.
+
+Hold mode is the original push-to-talk behavior. Single tap / double tap modes route events through `TapStateMachine`, which converts raw key events into semantic `.start` / `.stop` actions. `HotkeyManager` exposes `onActivate` / `onDeactivate` as the unified callback surface — Hold maps keyDown→activate / keyUp→deactivate; tap modes map `.start`→activate / `.stop`→deactivate.
+
+`AppDelegate` observes `UserDefaults.didChangeNotification` and calls `HotkeyManager.restart(keyCode:mode:doubleTapWindowMs:)` when either setting changes. Restart tears down the existing CGEventTap and spawns a fresh `com.voxkey.eventtap` background thread — the threading invariant above must be preserved through restart.
 
 ### Custom dictionary
 
