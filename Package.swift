@@ -23,6 +23,12 @@ let package = Package(
             name: "VoxKeyTests",
             dependencies: ["VoxKey"],
             path: "VoxKeyTests"
+        ),
+        // Dependency-free checks runnable with `swift run ManagerChecks` — no Xcode /
+        // XCTest required. Compiles the real AudioCaptureManager.swift directly.
+        .executableTarget(
+            name: "ManagerChecks",
+            path: "ManagerChecks"
         )
     ]
 )

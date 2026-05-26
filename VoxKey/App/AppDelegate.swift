@@ -106,14 +106,14 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             return
         }
 
-        let audioSamples = audioCaptureManager.stopRecording()
-        logger.info("Audio captured: \(audioSamples.count) samples (\(Double(audioSamples.count) / 16000.0)s)")
-
-        mediaPauseManager.resumeIfPaused()
-
-        appState.currentState = .processing
-
         Task {
+            let audioSamples = await audioCaptureManager.stopRecording()
+            logger.info("Audio captured: \(audioSamples.count) samples (\(Double(audioSamples.count) / 16000.0)s)")
+
+            mediaPauseManager.resumeIfPaused()
+
+            appState.currentState = .processing
+
             do {
                 let text = try await transcriptionService.transcribe(audioSamples: audioSamples)
                 logger.info("Transcription: '\(text)'")

@@ -23,13 +23,13 @@ final class AudioCaptureManagerTests: XCTestCase {
 
     // MARK: - stopRecording When Not Recording
 
-    func testStopRecording_whenNotRecording_returnsEmptyArray() {
-        let samples = sut.stopRecording()
+    func testStopRecording_whenNotRecording_returnsEmptyArray() async {
+        let samples = await sut.stopRecording()
         XCTAssertTrue(samples.isEmpty)
     }
 
-    func testStopRecording_whenNotRecording_remainsNotRecording() {
-        _ = sut.stopRecording()
+    func testStopRecording_whenNotRecording_remainsNotRecording() async {
+        _ = await sut.stopRecording()
         XCTAssertFalse(sut.currentlyRecording)
     }
 
