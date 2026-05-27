@@ -23,6 +23,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     // Track last-applied settings so we only restart when values actually change.
     private var lastAppliedKeyCode: CGKeyCode = Constants.defaultActivationKeyCode
     private var lastAppliedMode: ActivationMode = Constants.defaultActivationMode
+    private var lastAppliedDoubleTapWindowMs: Int = Constants.defaultDoubleTapWindowMs
     private var pendingActivationRestart: Bool = false
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -72,6 +73,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // Record the initial configured values so we can detect changes later.
         lastAppliedKeyCode = hotkeyManager.configuredKeyCode
         lastAppliedMode = hotkeyManager.configuredMode
+        lastAppliedDoubleTapWindowMs = hotkeyManager.configuredDoubleTapWindowMs
 
         // Start listening for hotkey
         let started = hotkeyManager.start()
@@ -188,8 +190,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let storedKeyCodeInt = UserDefaults.standard.object(forKey: "activationKeyCode") as? Int
         let newKeyCode = storedKeyCodeInt.map { CGKeyCode($0) } ?? Constants.defaultActivationKeyCode
         let newMode = ActivationMode.current
+        let newDoubleTapWindowMs = UserDefaults.standard.object(forKey: "doubleTapWindowMs") as? Int
+            ?? Constants.defaultDoubleTapWindowMs
 
-        guard newKeyCode != lastAppliedKeyCode || newMode != lastAppliedMode else {
+        guard newKeyCode != lastAppliedKeyCode
+            || newMode != lastAppliedMode
+            || newDoubleTapWindowMs != lastAppliedDoubleTapWindowMs else {
             return
         }
 
@@ -210,8 +216,17 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             ?? Constants.defaultDoubleTapWindowMs
         lastAppliedKeyCode = keyCode
         lastAppliedMode = mode
+        lastAppliedDoubleTapWindowMs = doubleTapWindowMs
         pendingActivationRestart = false
-        hotkeyManager.restart(keyCode: keyCode, mode: mode, doubleTapWindowMs: doubleTapWindowMs)
+        let started = hotkeyManager.restart(keyCode: keyCode, mode: mode, doubleTapWindowMs: doubleTapWindowMs)
+        if !started {
+            // The new tap failed to register (e.g. permissions became invalid). The
+            // setting is persisted, but the hotkey is inactive until re-granted —
+            // surface it rather than leave the user with a silently dead hotkey.
+            logger.error("Hotkey manager failed to restart - showing onboarding")
+            appState.errorMessage = "Failed to start hotkey listener. Check Accessibility permissions."
+            showOnboarding()
+        }
     }
 
     func applicationWillTerminate(_ notification: Notification) {
