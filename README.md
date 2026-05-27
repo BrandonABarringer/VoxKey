@@ -11,7 +11,7 @@ Hold **Right Ctrl** to record, release to transcribe, and text is inserted at yo
 1. Go to the [Releases page](https://github.com/BrandonABarringer/VoxKey/releases) and download the latest `VoxKey-<version>.zip`.
 2. Unzip and drag `VoxKey.app` into `/Applications`.
 3. Double-click `VoxKey.app`. macOS will refuse to open it the first time and show a dialog that says **"VoxKey can't be opened because the developer cannot be verified."** This is expected — the app is not yet signed with an Apple-issued certificate. Click **Cancel** on this dialog (clicking Cancel is the right answer, not a mistake). **Do not click "Move to Trash"** — that removes the app entirely and you'll have to start over.
-4. Within a few minutes of step 3, open **System Settings → Privacy & Security**. Scroll to the bottom of the page. You'll see a message like **"VoxKey was blocked to protect your Mac."** Click **Open Anyway** next to it. (If you waited too long and the message is gone, see "If you don't see Open Anyway" below.)
+4. Soon after step 3 (the entry stays for about an hour), open **System Settings → Privacy & Security**. Scroll to the bottom of the page. You'll see a message like **"VoxKey was blocked to protect your Mac."** Click **Open Anyway** next to it. (If the message is gone, see "If you don't see Open Anyway" below.)
 5. macOS will prompt for your password to confirm, then show one more "Are you sure you want to open it?" dialog. Click **Open**.
 6. VoxKey is now installed. From here on, it launches normally.
 
@@ -23,10 +23,10 @@ On first launch, VoxKey will guide you through granting three permissions in Sys
 
 Each permission opens its own panel in System Settings → Privacy & Security. Toggle VoxKey on in each one, then return to the app.
 
-> **Note:** Steps 3–5 repeat any time you install a new version. This is a macOS behavior for apps that aren't notarized by Apple. We may add notarized releases in the future, which would remove this step. If you receive `VoxKey.app` directly via AirDrop or a Slack file share from a trusted sender (instead of downloading from GitHub), steps 3–5 may not be required because the quarantine flag isn't applied.
+> **Note:** Steps 3–5 repeat any time you install a new version. This is a macOS behavior for apps that aren't notarized by Apple. We may add notarized releases in the future, which would remove this step. If you receive `VoxKey.app` directly via AirDrop from a trusted Mac (instead of downloading from GitHub or another app), steps 3–5 may not be required because the quarantine flag isn't applied.
 
 <details>
-<summary>If you don't see "Open Anyway"</summary>
+<summary>If you don't see "Open Anyway" (Terminal fallback)</summary>
 
 If the System Settings → Privacy & Security panel no longer shows the "VoxKey was blocked..." message (it expires after a short window), you can clear the quarantine flag manually from Terminal:
 

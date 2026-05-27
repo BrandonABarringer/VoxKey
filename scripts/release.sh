@@ -74,10 +74,12 @@ codesign --force \
 
 echo "Verifying signature..."
 codesign --verify --strict --deep "$APP_BUNDLE"
-# Run a Gatekeeper assessment for diagnostic output. A self-signed identity will
-# be `rejected` — that's expected for unnotarized builds. We don't fail the script
-# on this; the rejection code distinguishes "untrusted identity" (fine for us)
-# from a structurally broken signature (would be a bug).
+# Informational Gatekeeper assessment. A self-signed identity is `rejected` —
+# this is the expected and intentional state for unnotarized builds (it's what
+# triggers the "developer cannot be verified" dialog the README walks through).
+# codesign --verify above already catches a structurally broken signature, so
+# this call is purely diagnostic.
+echo "Gatekeeper assessment (rejection is expected for unnotarized self-signed builds):"
 spctl --assess --type execute --verbose "$APP_BUNDLE" 2>&1 || true
 
 ZIP_NAME="VoxKey-$VERSION.zip"
