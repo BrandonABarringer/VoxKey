@@ -1,6 +1,9 @@
 import Foundation
 import AppKit
 import CoreGraphics
+import os.log
+
+private let logger = Logger(subsystem: "com.voxkey.VoxKey", category: "insert")
 
 final class TextInsertionManager {
 
@@ -11,17 +14,26 @@ final class TextInsertionManager {
 
         // 1. Save current clipboard contents (all types)
         let savedItems = savePasteboard(pasteboard)
+        logger.info("Saved \(savedItems.count, privacy: .public) clipboard items")
 
         // 2. Set transcribed text to clipboard
         pasteboard.clearContents()
-        pasteboard.setString(text, forType: .string)
+        let writeSucceeded = pasteboard.setString(text, forType: .string)
+        logger.info("Clipboard write: \(writeSucceeded ? "OK" : "FAILED", privacy: .public), len=\(text.count, privacy: .public)")
+
+        // Verify the clipboard actually holds the text we just wrote.
+        let verify = pasteboard.string(forType: .string) ?? "<nil>"
+        let verifyOK = verify == text
+        logger.info("Clipboard verify: \(verifyOK ? "match" : "MISMATCH", privacy: .public), read-len=\(verify.count, privacy: .public)")
 
         // 3. Simulate Cmd+V
         simulatePaste()
+        logger.info("Posted Cmd+V events")
 
         // 4. Restore clipboard after delay
         DispatchQueue.main.asyncAfter(deadline: .now() + Constants.clipboardRestoreDelay) {
             self.restorePasteboard(pasteboard, items: savedItems)
+            logger.info("Clipboard restored")
         }
     }
 

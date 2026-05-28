@@ -3,15 +3,20 @@
 //     swift run ManagerChecks
 //
 // No XCTest, no Xcode, no CI. Runs all checks and exits non-zero if any failed,
-// so it can gate a manual pre-push check if desired. Compiles the real AudioCaptureManager.swift
-// (listed as a source of this target in Package.swift) — these exercise the
-// shipping code, not a copy.
+// so it can gate a manual pre-push check if desired.
 //
-// Coverage: the first-buffer wait that PR #1 introduced and PR #1's review feedback
-// reshaped (serial queue + continuation, off the main thread). Verifies the wait
-// resumes on a buffer, short-circuits when one is already present, and bounds itself
-// by the timeout instead of hanging — i.e. the original "short tap keeps its audio"
-// fix still holds after the concurrency rewrite.
+// The manager files under test (AudioCaptureManager, HotkeyManager, and the types
+// HotkeyManager needs) are SYMLINKS in this directory pointing at the real sources
+// under VoxKey/ — so these checks exercise the shipping code, not a copy. See the
+// ManagerChecks target comment in Package.swift for why symlinks are used. main.swift
+// is the only real file here.
+//
+// Coverage:
+// - PR #1: the first-buffer wait (serial queue + continuation, off the main thread).
+//   Verifies it resumes on a buffer, short-circuits when one is already present, and
+//   bounds itself by the timeout — i.e. the "short tap keeps its audio" fix holds.
+// - PR #2: HotkeyManager.restart() stores doubleTapWindowMs / mode / keycode on the
+//   manager (the formerly-dead parameter now drives the TapStateMachine).
 
 import Foundation
 
@@ -75,6 +80,19 @@ Task {
             await m.awaitFirstBuffer()
         }
         check(true, "50x concurrent arrival/wait cycles (run under TSan to detect races)")
+    }
+
+    // PR #2 review fix: doubleTapWindowMs is no longer a dead restart() parameter —
+    // it is stored on the manager and used to build the TapStateMachine, rather than
+    // read from UserDefaults at event time. restart() also calls start(), which
+    // returns false here (no Accessibility), but the config writes happen first, so
+    // configuredDoubleTapWindowMs reflects the passed value regardless.
+    do {
+        let h = HotkeyManager()
+        h.restart(keyCode: 62, mode: .doubleTap, doubleTapWindowMs: 275)
+        check(h.configuredDoubleTapWindowMs == 275, "restart() stores doubleTapWindowMs on the manager")
+        check(h.configuredMode == .doubleTap, "restart() stores activation mode on the manager")
+        check(h.configuredKeyCode == 62, "restart() stores keycode on the manager")
     }
 
     print(failures == 0 ? "\nAll checks passed." : "\n\(failures) check(s) failed.")

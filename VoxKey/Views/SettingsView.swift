@@ -5,6 +5,8 @@ struct SettingsView: View {
     @AppStorage("selectedModel") private var selectedModel: String = Constants.defaultModel
     @AppStorage("launchAtLogin") private var launchAtLogin: Bool = false
     @AppStorage("pauseMediaWhileDictating") private var pauseMediaWhileDictating: Bool = true
+    @AppStorage("activationKeyCode") private var activationKeyCode: Int = Int(Constants.defaultActivationKeyCode)
+    @AppStorage("activationMode") private var activationMode: String = Constants.defaultActivationMode.rawValue
 
     @EnvironmentObject var transcriptionService: TranscriptionService
     @EnvironmentObject var permissionManager: PermissionManager
@@ -14,6 +16,39 @@ struct SettingsView: View {
 
     var body: some View {
         Form {
+            Section("Activation") {
+                Picker("Activation Key", selection: $activationKeyCode) {
+                    ForEach(ActivationKey.allCases, id: \.cgKeyCode) { key in
+                        Text(key.label).tag(Int(key.cgKeyCode))
+                    }
+                }
+
+                Picker("Activation Mode", selection: $activationMode) {
+                    ForEach(ActivationMode.allCases, id: \.rawValue) { mode in
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(mode.label)
+                            Text(mode.modeDescription)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        .tag(mode.rawValue)
+                    }
+                }
+
+                // Warn users when Caps Lock is paired with Hold mode.
+                // macOS toggles the Caps Lock flag on press rather than holding it,
+                // so Hold mode is unreliable with keycode 57.
+                if activationKeyCode == 57 && activationMode == "hold" {
+                    HStack(spacing: 6) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundStyle(.orange)
+                        Text("Caps Lock toggles on press and is unreliable in Hold mode. Switch to Single Tap or Double Tap.")
+                            .font(.caption)
+                            .foregroundStyle(.orange)
+                    }
+                }
+            }
+
             Section("Transcription") {
                 Picker("Whisper Model", selection: $selectedModel) {
                     ForEach(Constants.whisperModels, id: \.self) { model in
@@ -107,7 +142,7 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
-        .frame(width: 450, height: 550)
+        .frame(width: 450, height: 680)
         .onAppear {
             NSApp.activate(ignoringOtherApps: true)
         }

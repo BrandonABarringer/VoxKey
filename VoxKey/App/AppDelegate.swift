@@ -20,10 +20,24 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     // Onboarding window
     private var onboardingWindow: NSWindow?
 
+    // Track last-applied settings so we only restart when values actually change.
+    private var lastAppliedKeyCode: CGKeyCode = Constants.defaultActivationKeyCode
+    private var lastAppliedMode: ActivationMode = Constants.defaultActivationMode
+    private var lastAppliedDoubleTapWindowMs: Int = Constants.defaultDoubleTapWindowMs
+    private var pendingActivationRestart: Bool = false
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         logger.info("VoxKey launched")
         permissionManager.checkAllPermissions()
         startDictationPipeline()
+
+        // Observe UserDefaults changes to apply new activation key / mode live.
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(userDefaultsDidChange(_:)),
+            name: UserDefaults.didChangeNotification,
+            object: nil
+        )
     }
 
     private func startDictationPipeline() {
@@ -41,20 +55,25 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             }
         }
 
-        // Wire hotkey callbacks
-        hotkeyManager.onKeyDown = { [weak self] in
-            logger.info("Right Ctrl DOWN")
+        // Wire hotkey callbacks using semantic names
+        hotkeyManager.onActivate = { [weak self] in
+            logger.info("Activation key activated")
             Task { @MainActor in
                 self?.handleKeyDown()
             }
         }
 
-        hotkeyManager.onKeyUp = { [weak self] in
-            logger.info("Right Ctrl UP")
+        hotkeyManager.onDeactivate = { [weak self] in
+            logger.info("Activation key deactivated")
             Task { @MainActor in
                 self?.handleKeyUp()
             }
         }
+
+        // Record the initial configured values so we can detect changes later.
+        lastAppliedKeyCode = hotkeyManager.configuredKeyCode
+        lastAppliedMode = hotkeyManager.configuredMode
+        lastAppliedDoubleTapWindowMs = hotkeyManager.configuredDoubleTapWindowMs
 
         // Start listening for hotkey
         let started = hotkeyManager.start()
@@ -116,15 +135,25 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
             do {
                 let text = try await transcriptionService.transcribe(audioSamples: audioSamples)
-                logger.info("Transcription: '\(text)'")
+                logger.info("Transcription succeeded, length=\(text.count, privacy: .public)")
                 appState.lastTranscription = text
+                logger.info("Before insertText, clipboard write + paste")
                 textInsertionManager.insertText(text)
+                logger.info("After insertText")
             } catch {
-                logger.error("Transcription failed: \(error.localizedDescription)")
+                logger.error("Transcription failed: \(error.localizedDescription, privacy: .public)")
                 appState.errorMessage = "Transcription failed: \(error.localizedDescription)"
             }
 
             appState.currentState = .idle
+            logger.info("State -> idle")
+
+            // Apply any activation-config change that arrived during recording.
+            if pendingActivationRestart {
+                let storedKeyCodeInt = UserDefaults.standard.object(forKey: "activationKeyCode") as? Int
+                let keyCode = storedKeyCodeInt.map { CGKeyCode($0) } ?? Constants.defaultActivationKeyCode
+                applyActivationConfig(keyCode: keyCode, mode: ActivationMode.current)
+            }
         }
     }
 
@@ -155,7 +184,53 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         onboardingWindow = window
     }
 
+    // MARK: - UserDefaults live-apply
+
+    @objc private func userDefaultsDidChange(_ notification: Notification) {
+        let storedKeyCodeInt = UserDefaults.standard.object(forKey: "activationKeyCode") as? Int
+        let newKeyCode = storedKeyCodeInt.map { CGKeyCode($0) } ?? Constants.defaultActivationKeyCode
+        let newMode = ActivationMode.current
+        let newDoubleTapWindowMs = UserDefaults.standard.object(forKey: "doubleTapWindowMs") as? Int
+            ?? Constants.defaultDoubleTapWindowMs
+
+        guard newKeyCode != lastAppliedKeyCode
+            || newMode != lastAppliedMode
+            || newDoubleTapWindowMs != lastAppliedDoubleTapWindowMs else {
+            return
+        }
+
+        // Defer restart if a recording is in progress — restarting the event tap
+        // mid-recording drops the audio buffer. Re-apply when state returns to idle.
+        guard appState.currentState == .idle else {
+            logger.info("Activation config changed during recording; deferring restart")
+            pendingActivationRestart = true
+            return
+        }
+
+        applyActivationConfig(keyCode: newKeyCode, mode: newMode)
+    }
+
+    private func applyActivationConfig(keyCode: CGKeyCode, mode: ActivationMode) {
+        logger.info("Activation config changed: keyCode=\(keyCode), mode=\(mode.rawValue)")
+        let doubleTapWindowMs = UserDefaults.standard.object(forKey: "doubleTapWindowMs") as? Int
+            ?? Constants.defaultDoubleTapWindowMs
+        lastAppliedKeyCode = keyCode
+        lastAppliedMode = mode
+        lastAppliedDoubleTapWindowMs = doubleTapWindowMs
+        pendingActivationRestart = false
+        let started = hotkeyManager.restart(keyCode: keyCode, mode: mode, doubleTapWindowMs: doubleTapWindowMs)
+        if !started {
+            // The new tap failed to register (e.g. permissions became invalid). The
+            // setting is persisted, but the hotkey is inactive until re-granted —
+            // surface it rather than leave the user with a silently dead hotkey.
+            logger.error("Hotkey manager failed to restart - showing onboarding")
+            appState.errorMessage = "Failed to start hotkey listener. Check Accessibility permissions."
+            showOnboarding()
+        }
+    }
+
     func applicationWillTerminate(_ notification: Notification) {
+        NotificationCenter.default.removeObserver(self, name: UserDefaults.didChangeNotification, object: nil)
         hotkeyManager.stop()
     }
 }
