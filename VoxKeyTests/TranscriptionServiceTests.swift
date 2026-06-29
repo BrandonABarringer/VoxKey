@@ -8,11 +8,15 @@ final class TranscriptionServiceTests: XCTestCase {
 
     override func setUp() {
         super.setUp()
+        // Clear the persisted model selection so the shared service starts from the
+        // default — currentModel is now seeded from UserDefaults["selectedModel"].
+        UserDefaults.standard.removeObject(forKey: "selectedModel")
         service = TranscriptionService()
     }
 
     override func tearDown() {
         service = nil
+        UserDefaults.standard.removeObject(forKey: "selectedModel")
         super.tearDown()
     }
 
@@ -26,6 +30,22 @@ final class TranscriptionServiceTests: XCTestCase {
         XCTAssertEqual(service.downloadProgress, 0.0)
         XCTAssertNil(service.errorMessage)
         XCTAssertNil(service.downloadError)
+    }
+
+    // MARK: - Model-selection seeding (launch honors the saved Settings choice)
+
+    func testCurrentModelSeededFromSavedSelection() {
+        // A non-default model previously chosen in Settings must be honored at launch,
+        // not overwritten by the default. Regression guard for the launch-ignores-saved-model bug.
+        UserDefaults.standard.set("small", forKey: "selectedModel")
+        let seeded = TranscriptionService()
+        XCTAssertEqual(seeded.currentModel, "small")
+    }
+
+    func testCurrentModelFallsBackToDefaultWhenNoSelection() {
+        UserDefaults.standard.removeObject(forKey: "selectedModel")
+        let seeded = TranscriptionService()
+        XCTAssertEqual(seeded.currentModel, Constants.defaultModel)
     }
 
     // MARK: - Transcription Guard Tests

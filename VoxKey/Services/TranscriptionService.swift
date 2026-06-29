@@ -17,7 +17,10 @@ enum TranscriptionError: LocalizedError {
 
 @MainActor
 final class TranscriptionService: ObservableObject {
-    @Published var currentModel: String = Constants.defaultModel
+    // Seed from the persisted Settings choice ("selectedModel", written by SettingsView's
+    // @AppStorage) so launch honors the user's saved model instead of always loading the
+    // default. Falls back to Constants.defaultModel on first run when nothing is saved.
+    @Published var currentModel: String = UserDefaults.standard.string(forKey: "selectedModel") ?? Constants.defaultModel
     @Published var isModelLoaded: Bool = false
     @Published var isLoading: Bool = false
     @Published var isDownloading: Bool = false
